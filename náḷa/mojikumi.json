@@ -1,0 +1,20 @@
+{
+  "fontMetrics": {
+    "fontName": "náḷa",
+    "fontType": "stroke",
+    "emSize": 1000,
+    "ascender": 775,
+    "descender": 225,
+    "outlineStroke": true,
+    "strokeStyle": "square",
+    "unifyStrokeWidth": false,
+    "unifiedStrokeWidth": 15,
+    "strokeWidthMultiplier": 1,
+    "removeOverlap": false,
+    "kerning": {},
+    "sTypoAscender": 775,
+    "sTypoDescender": -225,
+    "usWinDescent": 225,
+    "usWinAscent": 775
+  }
+}

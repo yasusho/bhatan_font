@@ -1,0 +1,202 @@
+languagesystem DFLT dflt;
+languagesystem latn dflt;
+
+# ==============================================================================
+# 1. クラス定義
+# ==============================================================================
+# 固有子音（声門閉鎖音 uni0294 を除く）
+@C_NO_GLOTTAL = [
+    p  b  m  w  t  d  n  s  c  l  r  k  g  h  j  y  z  x
+    uni1E6D  uni1E0D  uni1E47  uni1E63  uni1E37
+    ph bh dh kh gh
+];
+
+# 全子音（平音・有気音・そり舌音・声門閉鎖音）
+@C = [@C_NO_GLOTTAL uni0294];
+
+# 全母音（特別字形 q, u044A_u, u044A_a_i を含む）
+@V = [u aacute uacute ai e i iacute au o a q u044A_u u044A_a_i];
+
+
+# ==============================================================================
+# 2. 1対多の展開ルックアップ（仕様上外出しが必須な2つのみ定義）
+# ==============================================================================
+# 単独母音の前に uni0294 (ʔ) を挿入
+lookup INSERT_GLOTTAL {
+    sub u         by uni0294 u;
+    sub aacute    by uni0294 aacute;
+    sub uacute    by uni0294 uacute;
+    sub ai        by uni0294 ai;
+    sub e         by uni0294 e;
+    sub i         by uni0294 i;
+    sub iacute    by uni0294 iacute;
+    sub au        by uni0294 au;
+    sub o         by o uni0294;
+    sub a         by uni0294 a;
+    sub q         by uni0294 q;
+    sub u044A_u   by uni0294 u044A_u;
+    sub u044A_a_i by uni0294 u044A_a_i;
+} INSERT_GLOTTAL;
+
+# 母音が続かない子音に脱母音符号 uni044A (ъ) を付加
+lookup ATTACH_SOFTSIGN {
+    sub p  by p uni044A;   sub b  by b uni044A;   sub m  by m uni044A;   sub w  by w uni044A;
+    sub t  by t uni044A;   sub d  by d uni044A;   sub n  by n uni044A;   sub s  by s uni044A;
+    sub c  by c uni044A;   sub l  by l uni044A;   sub r  by r uni044A;   sub k  by k uni044A;
+    sub g  by g uni044A;   sub h  by h uni044A;   sub j  by j uni044A;   sub y  by y uni044A;
+    sub z  by z uni044A;   sub x  by x uni044A;
+    sub uni1E6D by uni1E6D uni044A;  sub uni1E0D by uni1E0D uni044A;
+    sub uni1E47 by uni1E47 uni044A;  sub uni1E63 by uni1E63 uni044A;  sub uni1E37 by uni1E37 uni044A;
+    sub ph by ph uni044A;  sub bh by bh uni044A;
+    sub dh by dh uni044A;  sub kh by kh uni044A;  sub gh by gh uni044A;
+} ATTACH_SOFTSIGN;
+
+
+# ==============================================================================
+# 3. パイプライン実行
+# ==============================================================================
+
+# --- Phase 1: 字形分解・長子音・構造正規化 ---
+feature ccmp {
+    # 0. 合字（疑問引用符）の事前形成
+    sub question quotedbl by question_quotedbl;
+
+    # 1. 事前トークン化（有気音 5種 ＆ 二重母音 2種）
+    sub p h by ph;   sub b h by bh;
+    sub d h by dh;   sub k h by kh;   sub g h by gh;
+    sub a i by ai;   sub a u by au;
+
+    # 2. 長子音（同子音の連続）：先行子音を uni044A に短縮
+    sub p'  p  by uni044A;   sub b'  b  by uni044A;   sub m'  m  by uni044A;   sub w'  w  by uni044A;
+    sub t'  t  by uni044A;   sub d'  d  by uni044A;   sub n'  n  by uni044A;   sub s'  s  by uni044A;
+    sub c'  c  by uni044A;   sub l'  l  by uni044A;   sub r'  r  by uni044A;   sub k'  k  by uni044A;
+    sub g'  g  by uni044A;   sub h'  h  by uni044A;   sub j'  j  by uni044A;   sub y'  y  by uni044A;
+    sub z'  z  by uni044A;   sub x'  x  by uni044A;
+    sub uni1E6D' uni1E6D by uni044A;  sub uni1E0D' uni1E0D by uni044A;
+    sub uni1E47' uni1E47 by uni044A;  sub uni1E63' uni1E63 by uni044A;  sub uni1E37' uni1E37 by uni044A;
+    sub ph' ph by uni044A;  sub bh' bh by uni044A;
+    sub dh' dh by uni044A;  sub kh' kh by uni044A;  sub gh' gh by uni044A;
+
+    # 3. 母音の直後の長子音記号（uni044A）を統合
+    sub a  uni044A by q;
+    sub u  uni044A by u044A_u;
+    sub ai uni044A by u044A_a_i;
+
+    # 4. 単独母音（先行子音なし）の前に uni0294 を展開
+    lookup INSERT_GLOTTAL_CONTEXT {
+        ignore sub @C @V';
+        sub @V' lookup INSERT_GLOTTAL;
+    } INSERT_GLOTTAL_CONTEXT;
+
+    # 5. 末子音・異子音クラスタ（後続母音なし）に uni044A を付加
+    lookup ATTACH_SOFTSIGN_CONTEXT {
+        ignore sub @C' @V;
+        sub @C' lookup ATTACH_SOFTSIGN;
+    } ATTACH_SOFTSIGN_CONTEXT;
+} ccmp;
+
+
+# --- Phase 2: 左回り込み o のスワップ & 句読点後のスペース除去 ---
+feature calt {
+    # 子音の直後に続く o uni044A (oъ) を、順序を維持したまま子音の前へスワップ
+    lookup SWAP_O_SOFTSIGN_LIG {
+        sub p  o uni044A by tmp_swp_p_o_softsign;    sub b  o uni044A by tmp_swp_b_o_softsign;
+        sub m  o uni044A by tmp_swp_m_o_softsign;    sub w  o uni044A by tmp_swp_w_o_softsign;
+        sub t  o uni044A by tmp_swp_t_o_softsign;    sub d  o uni044A by tmp_swp_d_o_softsign;
+        sub n  o uni044A by tmp_swp_n_o_softsign;    sub s  o uni044A by tmp_swp_s_o_softsign;
+        sub c  o uni044A by tmp_swp_c_o_softsign;    sub l  o uni044A by tmp_swp_l_o_softsign;
+        sub r  o uni044A by tmp_swp_r_o_softsign;    sub k  o uni044A by tmp_swp_k_o_softsign;
+        sub g  o uni044A by tmp_swp_g_o_softsign;    sub h  o uni044A by tmp_swp_h_o_softsign;
+        sub j  o uni044A by tmp_swp_j_o_softsign;    sub y  o uni044A by tmp_swp_y_o_softsign;
+        sub z  o uni044A by tmp_swp_z_o_softsign;    sub x  o uni044A by tmp_swp_x_o_softsign;
+        sub uni1E6D o uni044A by tmp_swp_uni1E6D_o_softsign; sub uni1E0D o uni044A by tmp_swp_uni1E0D_o_softsign;
+        sub uni1E47 o uni044A by tmp_swp_uni1E47_o_softsign; sub uni1E63 o uni044A by tmp_swp_uni1E63_o_softsign; sub uni1E37 o uni044A by tmp_swp_uni1E37_o_softsign;
+        sub ph o uni044A by tmp_swp_ph_o_softsign;   sub bh o uni044A by tmp_swp_bh_o_softsign;
+        sub dh o uni044A by tmp_swp_dh_o_softsign;   sub kh o uni044A by tmp_swp_kh_o_softsign;   sub gh o uni044A by tmp_swp_gh_o_softsign;
+    } SWAP_O_SOFTSIGN_LIG;
+
+    lookup SWAP_O_SOFTSIGN_EXP {
+        sub tmp_swp_p_o_softsign by o uni044A p;     sub tmp_swp_b_o_softsign by o uni044A b;
+        sub tmp_swp_m_o_softsign by o uni044A m;     sub tmp_swp_w_o_softsign by o uni044A w;
+        sub tmp_swp_t_o_softsign by o uni044A t;     sub tmp_swp_d_o_softsign by o uni044A d;
+        sub tmp_swp_n_o_softsign by o uni044A n;     sub tmp_swp_s_o_softsign by o uni044A s;
+        sub tmp_swp_c_o_softsign by o uni044A c;     sub tmp_swp_l_o_softsign by o uni044A l;
+        sub tmp_swp_r_o_softsign by o uni044A r;     sub tmp_swp_k_o_softsign by o uni044A k;
+        sub tmp_swp_g_o_softsign by o uni044A g;     sub tmp_swp_h_o_softsign by o uni044A h;
+        sub tmp_swp_j_o_softsign by o uni044A j;     sub tmp_swp_y_o_softsign by o uni044A y;
+        sub tmp_swp_z_o_softsign by o uni044A z;     sub tmp_swp_x_o_softsign by o uni044A x;
+        sub tmp_swp_uni1E6D_o_softsign by o uni044A uni1E6D; sub tmp_swp_uni1E0D_o_softsign by o uni044A uni1E0D;
+        sub tmp_swp_uni1E47_o_softsign by o uni044A uni1E47; sub tmp_swp_uni1E63_o_softsign by o uni044A uni1E63; sub tmp_swp_uni1E37_o_softsign by o uni044A uni1E37;
+        sub tmp_swp_ph_o_softsign by o uni044A ph;   sub tmp_swp_bh_o_softsign by o uni044A bh;
+        sub tmp_swp_dh_o_softsign by o uni044A dh;   sub tmp_swp_kh_o_softsign by o uni044A kh;   sub tmp_swp_gh_o_softsign by o uni044A gh;
+    } SWAP_O_SOFTSIGN_EXP;
+
+    # 子音の直後に続く母音 o を先行配置（一時合字を経由した2段階置換）
+    lookup SWAP_O_LIG {
+        sub p  o by tmp_swp_p_o;    sub b  o by tmp_swp_b_o;    sub m  o by tmp_swp_m_o;    sub w  o by tmp_swp_w_o;
+        sub t  o by tmp_swp_t_o;    sub d  o by tmp_swp_d_o;    sub n  o by tmp_swp_n_o;    sub s  o by tmp_swp_s_o;
+        sub c  o by tmp_swp_c_o;    sub l  o by tmp_swp_l_o;    sub r  o by tmp_swp_r_o;    sub k  o by tmp_swp_k_o;
+        sub g  o by tmp_swp_g_o;    sub h  o by tmp_swp_h_o;    sub j  o by tmp_swp_j_o;    sub y  o by tmp_swp_y_o;
+        sub z  o by tmp_swp_z_o;    sub x  o by tmp_swp_x_o;
+        sub uni1E6D o by tmp_swp_uni1E6D_o; sub uni1E0D o by tmp_swp_uni1E0D_o;
+        sub uni1E47 o by tmp_swp_uni1E47_o; sub uni1E63 o by tmp_swp_uni1E63_o; sub uni1E37 o by tmp_swp_uni1E37_o;
+        sub ph o by tmp_swp_ph_o;   sub bh o by tmp_swp_bh_o;
+        sub dh o by tmp_swp_dh_o;   sub kh o by tmp_swp_kh_o;   sub gh o by tmp_swp_gh_o;
+    } SWAP_O_LIG;
+
+    lookup SWAP_O_EXP {
+        sub tmp_swp_p_o by o p;     sub tmp_swp_b_o by o b;     sub tmp_swp_m_o by o m;     sub tmp_swp_w_o by o w;
+        sub tmp_swp_t_o by o t;     sub tmp_swp_d_o by o d;     sub tmp_swp_n_o by o n;     sub tmp_swp_s_o by o s;
+        sub tmp_swp_c_o by o c;     sub tmp_swp_l_o by o l;     sub tmp_swp_r_o by o r;     sub tmp_swp_k_o by o k;
+        sub tmp_swp_g_o by o g;     sub tmp_swp_h_o by o h;     sub tmp_swp_j_o by o j;     sub tmp_swp_y_o by o y;
+        sub tmp_swp_z_o by o z;     sub tmp_swp_x_o by o x;
+        sub tmp_swp_uni1E6D_o by o uni1E6D; sub tmp_swp_uni1E0D_o by o uni1E0D;
+        sub tmp_swp_uni1E47_o by o uni1E47; sub tmp_swp_uni1E63_o by o uni1E63; sub tmp_swp_uni1E37_o by o uni1E37;
+        sub tmp_swp_ph_o by o ph;   sub tmp_swp_bh_o by o bh;
+        sub tmp_swp_dh_o by o dh;   sub tmp_swp_kh_o by o kh;   sub tmp_swp_gh_o by o gh;
+    } SWAP_O_EXP;
+
+    # 右母音 (i, í, au) の直後に続く脱母音/長子音符号 uni044A を先行子音の直後へスワップ
+    lookup SWAP_SOFTSIGN_LIG {
+        sub i      uni044A by tmp_swp_i_uni044A;
+        sub iacute uni044A by tmp_swp_iacute_uni044A;
+        sub au     uni044A by tmp_swp_au_uni044A;
+    } SWAP_SOFTSIGN_LIG;
+
+    lookup SWAP_SOFTSIGN_EXP {
+        sub tmp_swp_i_uni044A      by uni044A i;
+        sub tmp_swp_iacute_uni044A by uni044A iacute;
+        sub tmp_swp_au_uni044A     by uni044A au;
+    } SWAP_SOFTSIGN_EXP;
+
+    # 句読点・約物直後のスペース（space）を除去
+    sub period space space by period;
+    sub period space by period;
+    sub comma space space by comma;
+    sub comma space by comma;
+    sub question space space by question;
+    sub question space by question;
+    sub quotedbl space space by quotedbl;
+    sub quotedbl space by quotedbl;
+    sub question_quotedbl space space by question_quotedbl;
+    sub question_quotedbl space by question_quotedbl;
+} calt;
+
+
+# --- Phase 3: 固有母音 a の吸収・消去 & 特殊合字 ---
+feature liga {
+    # 子音直後の固有母音 a を吸収
+    sub uni0294  a by uni0294;
+    sub p  a by p;   sub b  a by b;   sub m  a by m;   sub w  a by w;
+    sub t  a by t;   sub d  a by d;   sub n  a by n;   sub s  a by s;
+    sub c  a by c;   sub l  a by l;   sub r  a by r;   sub k  a by k;
+    sub g  a by g;   sub h  a by h;   sub j  a by j;   sub y  a by y;
+    sub z  a by z;   sub x  a by x;
+    sub uni1E6D a by uni1E6D;  sub uni1E0D a by uni1E0D;
+    sub uni1E47 a by uni1E47;  sub uni1E63 a by uni1E63;  sub uni1E37 a by uni1E37;
+    sub ph a by ph;  sub bh a by bh;
+    sub dh a by dh;  sub kh a by kh;  sub gh a by gh;
+
+    # 疑問引用符 ?" の合字
+    sub question quotedbl by question_quotedbl;
+} liga;

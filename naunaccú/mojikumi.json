@@ -1,0 +1,19 @@
+{
+  "fontMetrics": {
+    "fontName": "naunaccú",
+    "fontType": "stroke",
+    "emSize": 1000,
+    "ascender": 750,
+    "descender": 250,
+    "outlineStroke": true,
+    "strokeStyle": "original",
+    "unifyStrokeWidth": false,
+    "unifiedStrokeWidth": 15,
+    "strokeWidthMultiplier": 1,
+    "removeOverlap": false,
+    "kerning": {},
+    "sTypoAscender": 750,
+    "sTypoDescender": -250,
+    "usWinDescent": 250
+  }
+}
